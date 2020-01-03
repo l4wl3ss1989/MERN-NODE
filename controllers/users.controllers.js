@@ -1,5 +1,6 @@
 const uuid = require('uuid/v4');
 
+const HttpError = require('../models/http-error');
 const { DUMMY_USERS } = require('../dummy/dummy');
 
 exports.getUsers = (req, res, next) => {
@@ -8,6 +9,8 @@ exports.getUsers = (req, res, next) => {
 
 exports.createUser = (req, res, next) => {
   const { name, email, password } = req.body;
+  const emailExists = DUMMY_USERS.find(user => user.email === email);
+  if (emailExists) throw new HttpError('Could not create user, email allready exists', 422);
   const createdUser = {
     id: uuid,
     name,
@@ -19,5 +22,9 @@ exports.createUser = (req, res, next) => {
 };
 
 exports.loginUser = (req, res, next) => {
-  res.status(200).json({ message: 'User Logged in' });
+  const { email, password } = req.body;
+  const identifiedUser = DUMMY_USERS.find(user => user.email === email);
+  if (!identifiedUser || identifiedUser.password !== password)
+    throw new HttpError('Could not Identify user, credentials seem to be wrong', 401);
+  res.json({ message: 'Logged in' });
 };
