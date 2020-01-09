@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 
+const { PORT } = require('./config/config');
 const HttpError = require('./models/http-error');
 const placesRoutes = require('./routes/places.routes');
 const userRoutes = require('./routes/users.routes');
@@ -28,5 +29,4 @@ app.use((error, req, res, next) => {
   res.status(code || 500).json({ message: message || 'An unknown error ocurred' });
 });
 
-const PORT = 5000;
 app.listen(PORT, () => console.log(`Listening to PORT: ${PORT}`));
