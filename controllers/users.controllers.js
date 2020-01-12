@@ -1,30 +1,51 @@
-const uuid = require('uuid/v4');
-
 const HttpError = require('../models/http-error');
-const { DUMMY_USERS } = require('../dummy/dummy');
+const User = require('../models/user');
 
-exports.getUsers = (req, res, next) => {
-  res.json(DUMMY_USERS);
+exports.getUsers = async (req, res, next) => {
+  let users;
+  try {
+    users = await User.find({}, '-password');
+  } catch (err) {
+    return next(new HttpError('Fetching users failed, please try again later.', 500));
+  }
+  res.json({ users: users.map(user => user.toObject({ getters: true })) });
 };
 
-exports.createUser = (req, res, next) => {
+exports.createUser = async (req, res, next) => {
   const { name, email, password } = req.body;
-  const emailExists = DUMMY_USERS.find(user => user.email === email);
-  if (emailExists) throw new HttpError('Could not create user, email allready exists', 422);
-  const createdUser = {
-    id: uuid,
+  let existingUser;
+  try {
+    existingUser = await User.findOne({ email });
+  } catch (err) {
+    return next(new HttpError('Signing up failed please try again later', 500));
+  }
+  if (existingUser)
+    return next(new HttpError('User exists already, please login instead.', 422));
+  const createdUser = new User({
     name,
     email,
-    password
-  };
-  DUMMY_USERS.push(createdUser);
-  res.status(201).json({ user: createdUser });
+    image:
+      'https://accounts.google.com/SignOutOptions?hl=en&amp;continue=https://www.google.com%3Fhl%3Den-US',
+    password,
+    places: []
+  });
+  try {
+    await createdUser.save();
+  } catch (err) {
+    return next(new HttpError('Signing up failed, please try again.', 500));
+  }
+  res.status(201).json({ user: createdUser.toObject({ getters: true }) });
 };
 
-exports.loginUser = (req, res, next) => {
+exports.loginUser = async (req, res, next) => {
   const { email, password } = req.body;
-  const identifiedUser = DUMMY_USERS.find(user => user.email === email);
-  if (!identifiedUser || identifiedUser.password !== password)
-    throw new HttpError('Could not Identify user, credentials seem to be wrong', 401);
-  res.json({ message: 'Logged in' });
+  let existingUser;
+  try {
+    existingUser = await User.findOne({ email });
+  } catch (err) {
+    return next(new HttpError('Logging in failed please try again later', 500));
+  }
+  if (!existingUser || existingUser.password !== password)
+    return next(new HttpError('Invalid credentials, could not log you in.', 401));
+  res.json({ message: 'Logged in!' });
 };
