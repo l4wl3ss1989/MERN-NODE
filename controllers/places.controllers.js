@@ -1,3 +1,4 @@
+const fs = require('fs');
 const mongoose = require('mongoose');
 
 const HttpError = require('../models/http-error');
@@ -48,8 +49,9 @@ exports.getPlacesByUserId = async (req, res, next) => {
   });
 };
 
+// WARN 💥: Requires places collection allready been created.
 exports.createPlace = async (req, res, next) => {
-  const { title, description, address, creator } = req.body;
+  const { title, description, address } = req.body;
   let coordinates;
   try {
     coordinates = await getCoordsFromAddress(address);
@@ -61,21 +63,19 @@ exports.createPlace = async (req, res, next) => {
     description,
     address,
     location: coordinates,
-    image:
-      'https://upload.wikimedia.org/wikipedia/commons/c/c7/Empire_State_Building_from_the_Top_of_the_Rock.jpg',
-    creator
+    image: req.file.path.replace(/\\/g, '/'), // WARN 💥: Windows Issue
+    creator: req.userData.userId
   });
 
   let user;
   try {
-    user = await User.findById(creator);
+    user = await User.findById(req.userData.userId);
   } catch (err) {
     return next(new HttpError('Creating place failed, please try again.', 500));
   }
   if (!user) return next(new HttpError('Could not find user for provaided id', 404));
   try {
     // https://www.udemy.com/course/react-nodejs-express-mongodb-the-mern-fullstack-guide/learn/lecture/16929128#questions
-    // WARN 💥: Requires places collection allready been created.
     const sess = await mongoose.startSession();
     sess.startTransaction();
     await createdPlace.save({ session: sess });
@@ -93,6 +93,7 @@ exports.createPlace = async (req, res, next) => {
 exports.updatePlace = async (req, res, next) => {
   const placeId = req.params.pid;
   const { title, description } = req.body;
+  const { userId } = req.userData;
   let place;
   try {
     place = await Place.findById(placeId);
@@ -100,6 +101,8 @@ exports.updatePlace = async (req, res, next) => {
     const error = new HttpError('Somthing went wrong, could not update a place.', 500);
     return next(error);
   }
+
+  if (place.creator.toString() !== userId) return next(new HttpError('Not allowed.', 401));
   if (!place) return next(new HttpError('Place NOT found.', 404));
   place.title = title;
   place.description = description;
@@ -115,6 +118,7 @@ exports.updatePlace = async (req, res, next) => {
 
 exports.deletePlace = async (req, res, next) => {
   const placeId = req.params.pid;
+  const { userId } = req.userData;
   let place;
   try {
     place = await Place.findById(placeId).populate('creator'); // acces external doc info by ref.
@@ -123,6 +127,8 @@ exports.deletePlace = async (req, res, next) => {
     return next(error);
   }
   if (!place) return next(new HttpError('Could not find a place for this id.', 404));
+  if (place.creator.id !== userId) return next(new HttpError('Not allowed.', 401));
+  const imagePath = place.image;
   try {
     const sess = await mongoose.startSession();
     sess.startTransaction();
@@ -135,5 +141,6 @@ exports.deletePlace = async (req, res, next) => {
     const error = new HttpError('Somthing went wrong, could not delete a place.', 500);
     return next(error);
   }
+  fs.unlink(imagePath, err => console.log(err)); // Remove file
   res.status(204).json({ message: 'Deleted place.' });
 };

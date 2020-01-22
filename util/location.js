@@ -10,12 +10,10 @@ const getCoordsFromAddress = async address => {
       address
     )}&key=${GOOGLE_API_KEY}`
   );
-
   const data = response.data;
   if (!data || data.status === 'ZERO_RESUTLS') {
     throw new HttpError('Could not find location for the especified address', 422);
   }
-  //   console.log(data.results);
   const coordinates = data.results[0].geometry.location;
   return coordinates;
 };

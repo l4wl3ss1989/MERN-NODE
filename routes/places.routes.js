@@ -9,6 +9,8 @@ const {
   updatePlace,
   deletePlace
 } = require('../controllers/places.controllers');
+const fileUpload = require('../middleware/file-upload');
+const checkAuth = require('../middleware/check-auth');
 
 const router = Router();
 
@@ -25,8 +27,16 @@ const patchValidator = createValidator.filter((el, index) => index !== createVal
 
 router.get('/:pid', getPlaceById);
 router.get('/user/:uid', getPlacesByUserId);
-router.post('/', createValidator, inputsValidate, createPlace);
-router.patch('/:pid', patchValidator, inputsValidate, updatePlace);
-router.delete('/:pid', deletePlace);
+
+router.post(
+  '/',
+  checkAuth,
+  fileUpload.single('image'),
+  createValidator,
+  inputsValidate,
+  createPlace
+);
+router.patch('/:pid', checkAuth, patchValidator, inputsValidate, updatePlace);
+router.delete('/:pid', checkAuth, deletePlace);
 
 module.exports = router;

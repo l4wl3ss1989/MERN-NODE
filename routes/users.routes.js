@@ -3,6 +3,7 @@ const { check } = require('express-validator');
 
 const inputsValidate = require('../util/inputs-validate');
 const { getUsers, createUser, loginUser } = require('../controllers/users.controllers');
+const fileUpload = require('../middleware/file-upload');
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ const signupValidator = [
 ];
 
 router.get('/', getUsers);
-router.post('/signup', signupValidator, inputsValidate, createUser);
+router.post('/signup', fileUpload.single('image'), signupValidator, inputsValidate, createUser);
 router.post('/login', loginUser);
 
 module.exports = router;
